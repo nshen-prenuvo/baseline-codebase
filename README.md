@@ -122,7 +122,7 @@ python src/finetune.py \
     --save_dir=/path/to/save/finetuned/models \
     --pretrained_weights_path=/path/to/pretrained/checkpoint.pth \
     --model_name=unet_b \
-    --patch_size=32 \
+    --patch_size=96 \
     --taskid=1 \
     --batch_size=2 \
     --epochs=500 \
