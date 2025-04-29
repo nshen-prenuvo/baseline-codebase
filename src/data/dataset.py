@@ -3,7 +3,7 @@ import torchvision
 import numpy as np
 import torch
 from torch.utils.data import Dataset
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Literal
 from batchgenerators.utilities.file_and_folder_operations import load_pickle
 from yucca.modules.data.augmentation.transforms.cropping_and_padding import CropPad
 from yucca.modules.data.augmentation.transforms.formatting import NumpyToTorch
@@ -11,23 +11,31 @@ from yucca.modules.data.augmentation.transforms.formatting import NumpyToTorch
 from batchgenerators.utilities.file_and_folder_operations import join
 
 
-class CLSDataset(Dataset):
+class FOMODataset(Dataset):
+    """
+    Dataset class for FOMO downstream tasks. Supports classification and regression tasks.
+    For segmentation tasks, use YuccaTrainDataset from the Yucca library instead.
+    """
+
     def __init__(
         self,
         samples: list,
         patch_size: Tuple[int, int, int],
         composed_transforms: Optional[torchvision.transforms.Compose] = None,
-        task_type: str = "classification",
-        allow_missing_modalities: Optional[bool] = False,
-        p_oversample_foreground: Optional[float] = 0,
+        task_type: Literal["classification", "regression"] = "classification",
+        allow_missing_modalities: Optional[bool] = False,  # For compatibility
+        p_oversample_foreground: Optional[float] = None,  # For compatibility
     ):
         super().__init__()
-        # for compatibility with the datamodule
-        assert task_type == "classification"
+        # Support only non-segmentation tasks
+        assert task_type in [
+            "classification",
+            "regression",
+        ], f"Unsupported task type: {task_type}. For segmentation use YuccaTrainDataset instead."
 
+        self.task_type = task_type
         self.all_files = samples
         self.composed_transforms = composed_transforms
-
         self.patch_size = patch_size
 
         self.croppad = CropPad(patch_size=self.patch_size)
@@ -51,7 +59,6 @@ class CLSDataset(Dataset):
         }
 
         metadata = {"foreground_locations": []}
-
         return self._transform(data_dict, metadata)
 
     def _transform(self, data_dict, metadata=None):
@@ -70,42 +77,24 @@ class CLSDataset(Dataset):
         return vol, header
 
     def _load_label(self, file):
-        file = file + ".txt"
-        label = np.loadtxt(file, dtype=int)
-
-        return label
+        # For classification and regression, labels are in .txt files
+        txt_file = file + ".txt"
+        if self.task_type == "classification":
+            return np.loadtxt(txt_file, dtype=int)
+        else:  # regression
+            reg_label = np.loadtxt(txt_file, dtype=float)
+            reg_label = np.atleast_1d(reg_label)
+            return reg_label
 
     def _load_volume(self, file):
         file = file + ".npy"
 
         try:
-            return np.load(file, "r")
+            vol = np.load(file, "r")
         except ValueError:
-            return np.load(file, allow_pickle=True)
+            vol = np.load(file, allow_pickle=True)
 
-
-class DummyCLSDataset(Dataset):
-    def __init__(
-        self,
-        patch_size: Tuple[int, int, int],
-        n_channels: int = 1,
-        n_classes: Optional[int] = 6,
-        composed_transforms: Optional[torchvision.transforms.Compose] = None,
-    ):
-        self.patch_size = patch_size
-        self.n_channels = n_channels
-        self.n_classes = n_classes
-        self.composed_transforms = composed_transforms
-
-    def __len__(self):
-        return 42
-
-    def __getitem__(self, idx):
-        return {
-            "image": torch.randn(1, 1, *self.patch_size),
-            "label": torch.randint(0, self.n_classes, (1,)),
-            "file_path": "null",
-        }
+        return vol
 
 
 class PretrainDataset(Dataset):

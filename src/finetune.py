@@ -28,10 +28,11 @@ from yucca.modules.data.augmentation.YuccaAugmentationComposer import (
 )
 from yucca.modules.data.data_modules.YuccaDataModule import YuccaDataModule
 from yucca.modules.callbacks.loggers import YuccaLogger
+from yucca.modules.data.datasets.YuccaDataset import YuccaTrainDataset
 
 from yucca.pipeline.configuration.split_data import get_split_config
 from yucca.pipeline.configuration.configure_paths import detect_version
-from data.dataset import CLSDataset
+from data.dataset import FOMODataset
 from data.task_configs import task1_config, task2_config, task3_config
 
 
@@ -181,32 +182,26 @@ def main():
         "model_name": args.model_name,
         "model_dimensions": "3D",
         "run_type": run_type,
-        
         # Split configuration
         "split_method": args.split_method,
         "split_param": split_param,
         "split_idx": args.split_idx,
-        
         # Directories
         "save_dir": save_dir,
         "train_data_dir": train_data_dir,
         "version_dir": version_dir,
         "version": version,
-        
         # Checkpoint
         "ckpt_path": ckpt_path,
         "pretrained_weights_path": args.pretrained_weights_path,
-        
         # Reproducibility
         "seed": seed,
-        
         # Dataset properties
         "num_classes": num_classes,
         "num_modalities": modalities,
         "image_extension": ".npy",
         "allow_missing_modalities": False,
         "labels": labels,
-        
         # Training parameters
         "batch_size": args.batch_size,
         "learning_rate": args.learning_rate,
@@ -216,20 +211,16 @@ def main():
         "epochs": args.epochs,
         "train_batches_per_epoch": args.train_batches_per_epoch,
         "effective_batch_size": effective_batch_size,
-        
         # Dataset metrics
         "train_dataset_size": train_dataset_size,
         "val_dataset_size": val_dataset_size,
         "max_iterations": max_iterations,
-        
         # Hardware settings
         "num_devices": args.num_devices,
         "num_workers": args.num_workers,
-        
         # Model compilation
         "compile": args.compile,
         "compile_mode": args.compile_mode,
-        
         # Trainer specific params
         "fast_dev_run": args.fast_dev_run,
     }
@@ -249,21 +240,33 @@ def main():
         version=version,
         steps_per_epoch=args.train_batches_per_epoch,
     )
-    loggers = [yucca_logger]
 
+    # Create wandb logger for Lightning
+    wandb_logger = L.pytorch.loggers.WandbLogger(
+        project="fomo-finetuning",
+        name=f"{config['experiment']}_version_{config['version']}",
+        log_model=True,
+    )
+
+    # Set up loggers
+    loggers = [yucca_logger, wandb_logger]
 
     # Configure augmentations based on preset
     aug_params = get_finetune_augmentation_params(args.augmentation_preset)
+    # we use the cls augmentatoin preset for regression
+    tt_preset = "classification" if task_type == "regression" else task_type
     augmenter = YuccaAugmentationComposer(
         patch_size=config["patch_size"],
-        task_type_preset=task_type,
+        task_type_preset=tt_preset,
         parameter_dict=aug_params,
         deep_supervision=False,
     )
 
     # Create the data module that handles loading and batching
     data_module = YuccaDataModule(
-        train_dataset_class=CLSDataset,  # Both classification and regression use CLSDataset
+        train_dataset_class=(
+            YuccaTrainDataset if task_type == "segmentation" else FOMODataset
+        ),
         composed_train_transforms=augmenter.train_transforms,
         composed_val_transforms=augmenter.val_transforms,
         patch_size=config["patch_size"],
@@ -274,6 +277,7 @@ def main():
         splits_config=splits_config,
         split_idx=config["split_idx"],
         num_workers=args.num_workers,
+        val_sampler=None,
     )
 
     # Print dataset information
@@ -285,20 +289,6 @@ def main():
         f"with train dataset of size {train_dataset_size} datapoints and val dataset of size {val_dataset_size} "
         f"and effective batch size of {effective_batch_size}"
     )
-
-    # Initialize wandb logging
-    wandb.init(
-        project="fomo-finetuning",
-        name=f"{config['experiment']}_version_{config['version']}",
-    )
-
-    # Create wandb logger for Lightning
-    wandb_logger = L.pytorch.loggers.WandbLogger(
-        project="fomo-finetuning",
-        name=f"{config['experiment']}_version_{config['version']}",
-        log_model=True,
-    )
-    loggers.append(wandb_logger)
 
     # Create model and trainer
     model = BaseSupervisedModel.create(
