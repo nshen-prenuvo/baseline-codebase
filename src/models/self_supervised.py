@@ -10,6 +10,7 @@ from yucca.functional.utils.kwargs import filter_kwargs
 
 from augmentations.mask import random_mask
 from models import networks
+import warnings
 
 
 class SelfSupervisedModel(L.LightningModule):
@@ -119,9 +120,10 @@ class SelfSupervisedModel(L.LightningModule):
         assert (
             x.shape[1] == self.input_channels
         ), f"Expected {self.input_channels} input channels but got {x.shape[1]}"
-        assert (
-            0 <= x.min() and x.max() <= 1
-        ), "Intensities should be normalized to (0, 1)"
+        if not (0 <= x.min() and x.max() <= 1):
+            warnings.warn(
+                f"Intensities of batch are not in (0, 1) but instead {(x.min(), x.max())}"
+            )
 
         y_hat, mask = self._augment_and_forward(x)
 
@@ -137,9 +139,10 @@ class SelfSupervisedModel(L.LightningModule):
         assert (
             x.shape[1] == self.input_channels
         ), f"Expected {self.input_channels} input channels but got {x.shape[1]}"
-        assert (
-            0 <= x.min() and x.max() <= 1
-        ), f"Intensities should be normalized to (0, 1), but was {(x.min(), x.max())}"
+        if not (0 <= x.min() and x.max() <= 1):
+            warnings.warn(
+                f"Intensities of batch are not in (0, 1) but instead {(x.min(), x.max())}"
+            )
 
         y_hat, mask = self._augment_and_forward(x)
         loss = self.rec_loss(y_hat, y, mask=mask if self.rec_loss_masked_only else None)
