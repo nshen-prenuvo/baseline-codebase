@@ -16,11 +16,11 @@ From: python:3.11-slim
 %files
     # Copy your files (model, predict.py, requirements.txt, ...) to the container
     ./src/* /app/
-    ./requirements.txt /app/requirements.txt
+    ./src/inference/container_requirements.txt /app/requirements.txt
 
     # ----> CHANGES REQUIRED <---
     ./src/inference/predict_task2.py /app/predict.py  # <-- TODO: Change to correct task
-    /path/to/checkpoint /app/model.ckpt # <--- TODO: Change to correct path
+    /path/to/checkpoint.ckpt /app/model.ckpt # <--- TODO: Change to correct path
 
 %post
     # Create necessary directories
