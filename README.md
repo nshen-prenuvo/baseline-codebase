@@ -132,7 +132,7 @@ python src/finetune.py \
 
 Key finetuning parameters:
 - `--taskid`: Task ID (1: Infarct Detection, 2: Meningioma Segmentation, 3: Brain Age Regression)
-- `--model_name`: Must match the architecture of the pretrained checkpoint
+- `--model_name`: Must match the architecture of the pretrained checkpoint *without `lw_dec`*, so if you pretrained with `unet_xl_lw_dec`, this should be `unet_xl`.
 - `--pretrained_weights_path`: Path to the pretrained model checkpoint
 - `--augmentation_preset`: Choose from `all`, `basic`, or `none`
 
