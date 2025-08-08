@@ -44,6 +44,7 @@ def process_subject(task_info):
         image_files = []
         modality_mapping = {}
 
+        print(f"Session path: {session_path}")
         for file in os.listdir(session_path):
             if not file.endswith(".nii.gz"):
                 continue
@@ -51,18 +52,23 @@ def process_subject(task_info):
             # Determine modality
             if "dwi" in file:
                 modality_index = 0  # DWI
+                print(f"Found DWI: {file}")
             elif "flair" in file:
                 modality_index = 1  # T2FLAIR
+                print(f"Found T2FLAIR: {file}")
             elif "adc" in file:
                 modality_index = 2  # ADC
+                print(f"Found ADC: {file}")
             elif "swi" in file or "t2s" in file:
                 modality_index = 3  # SWI_OR_T2STAR
+                print(f"Found SWI_OR_T2STAR: {file}")
             else:
                 continue
 
             source_img = join(session_path, file)
             image_files.append(source_img)
             modality_mapping[modality_index] = source_img
+            print(f"Modality mapping: {modality_mapping}")
 
         # Skip if we don't have all required modalities
         if len(image_files) < len(modalities):
@@ -74,17 +80,27 @@ def process_subject(task_info):
             for i in range(len(modalities))
             if i in modality_mapping
         ]
-
+        print(modalities)
+        print(len(image_files))
+        for i in range(len(modalities)):
+            if i in modality_mapping:
+                print(i)
+        print(f"Images length: {len(images)}")
+        print(f"Images shape: {images[0].shape}")
+        
         # Apply preprocessing
         preprocessed_images, _ = preprocess_case_for_training_without_label(
             images=images,
             normalization_operation=[
                 pp_config["norm_op"] for _ in pp_config["modalities"]
             ],
+            target_spacing=pp_config["target_spacing"],
             allow_missing_modalities=False,
             crop_to_nonzero=pp_config["crop_to_nonzero"],
         )
-
+        print(f"Preprocessed images length: {len(preprocessed_images)}")
+        print(f"Preprocessed images shape: {preprocessed_images[0].shape}")
+        
         # Save preprocessed data
         save_path = join(target_preprocessed, f"{prefix}_{subject_id}")
         np.save(save_path + ".npy", preprocessed_images)

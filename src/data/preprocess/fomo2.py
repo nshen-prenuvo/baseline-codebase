@@ -83,6 +83,7 @@ def process_subject(task_info):
                 normalization_operation=[
                     pp_config["norm_op"] for _ in pp_config["modalities"]
                 ],
+                target_spacing=pp_config["target_spacing"],
                 allow_missing_modalities=False,
                 crop_to_nonzero=pp_config["crop_to_nonzero"],
                 keep_aspect_ratio_when_using_target_size=pp_config["keep_aspect_ratio"],

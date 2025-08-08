@@ -1,5 +1,7 @@
 import argparse
+import sys
 
+sys.path.append("/home/ubuntu/fomo25_challenge/baseline-codebase/src")
 from data.preprocess.fomo1 import convert_and_preprocess_task1
 from data.preprocess.fomo2 import convert_and_preprocess_task2
 from data.preprocess.fomo3 import convert_and_preprocess_task3

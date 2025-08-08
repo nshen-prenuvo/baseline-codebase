@@ -30,19 +30,23 @@ def process_single_scan(scan_info, preprocess_config, target_dir):
     scan_name = os.path.splitext(os.path.splitext(scan_file)[0])[0]
 
     try:
+        print(f"Processing {subject_name}/{session_name}/{scan_file}", flush=True)
         images, image_props = preprocess_case_for_training_without_label(
             images=[read_file_to_nifti_or_np(scan_path)], **preprocess_config
         )
         image = images[0]
+        print(f"Preprocessed {subject_name}/{session_name}/{scan_file}", flush=True)
 
         # Create a unique filename for the preprocessed data
         filename = f"{subject_name}_{session_name}_{scan_name}"
         save_path = join(target_dir, filename)
         np.save(save_path + ".npy", image)
         save_pickle(image_props, save_path + ".pkl")
-
+        print(f"Saved {subject_name}/{session_name}/{scan_file}", flush=True)
         return f"Processed {subject_name}/{session_name}/{scan_file}"
+    
     except Exception as e:
+        print(f"Error processing {subject_name}/{session_name}/{scan_file}: {str(e)}", flush=True)
         return f"Error processing {subject_name}/{session_name}/{scan_file}: {str(e)}"
 
 
@@ -55,7 +59,7 @@ def preprocess_pretrain_data(in_path: str, out_path: str, num_workers: int = Non
         out_path: Path to store preprocessed data
         num_workers: Number of parallel workers (default: CPU count - 1)
     """
-    target_dir = join(out_path, "FOMO60k")
+    target_dir = join(out_path)
     ensure_dir_exists(target_dir)
 
     preprocess_config = {
@@ -81,6 +85,9 @@ def preprocess_pretrain_data(in_path: str, out_path: str, num_workers: int = Non
 
             scan_files = [f for f in os.listdir(session_dir) if f.endswith(".nii.gz")]
             for scan_file in scan_files:
+                if os.path.exists(os.path.join(target_dir, f"{subject_name}_{session_name}_{scan_file.split('.')[0]}.npy")):
+                    print(f"Skipping {subject_name}/{session_name}/{scan_file} because it already exists", flush=True)
+                    continue
                 scan_path = os.path.join(session_dir, scan_file)
                 scan_infos.append((subject_name, session_name, scan_file, scan_path))
 
